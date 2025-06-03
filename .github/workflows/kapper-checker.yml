@@ -19,11 +19,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
         
-      - name: Download previous state
-        uses: actions/download-artifact@v3
-        with:
-          name: previous-notified
-        continue-on-error: true  # Continue if no artifact exists (first run)
+      # No download step for now - we'll add it back once first run is successful
         
       - name: Run appointment checker
         env:
@@ -42,7 +38,7 @@ jobs:
         run: python "KapperAlert -Github Version.py"
         
       - name: Save state for next run
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v3
         with:
           name: previous-notified
