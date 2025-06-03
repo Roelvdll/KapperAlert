@@ -1,0 +1,51 @@
+name: Kapper Appointment Checker
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Run every 15 minutes
+  workflow_dispatch:         # Allow manual runs
+
+jobs:
+  check-appointments:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+          
+      - name: Install dependencies
+        run: pip install requests
+        
+      - name: Download previous state
+        uses: actions/download-artifact@v2
+        with:
+          name: previous-notified
+          path: ./
+        continue-on-error: true  # Continue if no artifact exists (first run)
+        
+      - name: Run appointment checker
+        env:
+          API_URL: ${{ secrets.API_URL }}
+          AUTH_URL: ${{ secrets.AUTH_URL }}
+          EMAIL: ${{ secrets.EMAIL }}
+          USER_ID: ${{ secrets.USER_ID }}
+          MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+          MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+          MAILGUN_FROM_EMAIL: ${{ secrets.MAILGUN_FROM_EMAIL }}
+          MAILGUN_TO_EMAIL: ${{ secrets.MAILGUN_TO_EMAIL }}
+          MAILGUN_API_URL: ${{ secrets.MAILGUN_API_URL }}
+          ORIGIN: ${{ secrets.ORIGIN }}
+          REFERER: ${{ secrets.REFERER }}
+          MAIL_TEMPLATE_LINK: ${{ secrets.MAIL_TEMPLATE_LINK }}
+        run: python "KapperAlert -Github Version.py"
+        
+      - name: Save state for next run
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: previous-notified
+          path: previous_notified.pkl
+          retention-days: 1
