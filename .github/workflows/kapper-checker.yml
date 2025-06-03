@@ -9,21 +9,20 @@ jobs:
   check-appointments:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: 3.9
+          python-version: '3.9'
           
       - name: Install dependencies
         run: pip install requests
         
       - name: Download previous state
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: previous-notified
-          path: ./
         continue-on-error: true  # Continue if no artifact exists (first run)
         
       - name: Run appointment checker
@@ -44,7 +43,7 @@ jobs:
         
       - name: Save state for next run
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: previous-notified
           path: previous_notified.pkl
