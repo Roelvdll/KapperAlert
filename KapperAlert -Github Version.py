@@ -127,10 +127,17 @@ def load_previous_notified():
     """Load the set of previously notified appointment dates"""
     if os.path.exists(PREVIOUS_NOTIFIED_FILE):
         try:
-            with open(PREVIOUS_NOTIFIED_FILE, 'rb') as f:
-                return pickle.load(f)
+            # Check if file is not empty
+            if os.path.getsize(PREVIOUS_NOTIFIED_FILE) > 0:
+                with open(PREVIOUS_NOTIFIED_FILE, 'rb') as f:
+                    return pickle.load(f)
+            else:
+                logger.warning("Previous notified file exists but is empty")
+                return set()
         except Exception as e:
-            logger.error(f"Error loading previous notifications: {e}")
+            logger.error(f"Error loading previous notified dates: {e}")
+            return set()
+    logger.info("No previous notified file found, creating new")
     return set()
 
 def save_previous_notified(notified_dates):
@@ -138,8 +145,9 @@ def save_previous_notified(notified_dates):
     try:
         with open(PREVIOUS_NOTIFIED_FILE, 'wb') as f:
             pickle.dump(notified_dates, f)
+        logger.info(f"Saved {len(notified_dates)} notified dates to {PREVIOUS_NOTIFIED_FILE}")
     except Exception as e:
-        logger.error(f"Error saving previous notifications: {e}")
+        logger.error(f"Error saving notified dates: {e}")
 
 def send_email_notification(available_dates):
     """Send email notification with available appointment dates"""
