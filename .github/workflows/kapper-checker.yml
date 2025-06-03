@@ -2,8 +2,9 @@ name: Kapper Appointment Checker
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # Run every 15 minutes
-  workflow_dispatch: # Allow manual runs
+    # Run every 30 minutes from 7:00 to 22:30
+    - cron: '0,30 7-22 * * *'  # Every 30 minutes between 7:00-22:59
+  workflow_dispatch: 
 
 jobs:
   check-appointments:
