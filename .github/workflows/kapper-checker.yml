@@ -2,7 +2,7 @@ name: Kapper Appointment Checker
 
 on:
   schedule:
-    - cron: '0,30 7-22 * * *' # Every 30 minutes
+    - cron: '0,30 7-22 * * *'
       timeZone: 'Europe/Amsterdam'
   workflow_dispatch:
 
