@@ -2,7 +2,7 @@ name: Kapper Appointment Checker
 
 on:
   schedule:
-    - cron: '0,30 5-20 * * *'  # UTC time
+    - cron: '10,40 5-20 * * *'  # UTC time
   workflow_dispatch:
 
 jobs:
