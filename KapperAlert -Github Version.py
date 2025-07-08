@@ -23,7 +23,7 @@ EMAIL = os.environ.get("EMAIL")
 USER_ID = os.environ.get("USER_ID")
 
 # Configuration for checking
-DAYS_TO_LOOK_AHEAD = 30   # How many days in the future to check
+DAYS_TO_LOOK_AHEAD = 34   # How many days in the future to check
 CUTOFF_DATE = datetime(2025, 7, 23)  # Only process appointments until June 19th, 2025
 
 # Mailgun Configuration
