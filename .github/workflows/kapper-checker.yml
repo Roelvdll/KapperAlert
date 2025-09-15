@@ -42,6 +42,10 @@ jobs:
           ORIGIN: ${{ secrets.ORIGIN }}
           REFERER: ${{ secrets.REFERER }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ secrets.RESEND_FROM_EMAIL }} 
+          RESEND_TO_EMAIL: ${{ secrets.RESEND_TO_EMAIL }} 
+          
         run: python "KapperAlert -Github Version.py"
         
       - name: Commit and push if state changed
