@@ -24,8 +24,8 @@ EMAIL = os.environ.get("EMAIL")
 USER_ID = os.environ.get("USER_ID")
 
 # Configuration for checking
-DAYS_TO_LOOK_AHEAD = 30   # How many days in the future to check
-CUTOFF_DATE = datetime(2025, 9, 28)  # Only process appointments until June 19th, 2025
+DAYS_TO_LOOK_AHEAD = 34   # How many days in the future to check
+CUTOFF_DATE = datetime(2025, 8, 11)  # Only process appointments until August 11th, 2025
 
 # Mailgun Configuration
 # Resend Configuration
@@ -216,14 +216,18 @@ def get_auth_token():
 
 def get_available_appointments(token):
     """Make API call to check for available appointments"""
-    today = datetime.now().strftime("%Y-%m-%d")
-    end_date = (datetime.now() + timedelta(days=DAYS_TO_LOOK_AHEAD)).strftime("%Y-%m-%d")
-    
-    logger.info(f"Checking appointments from {today} to {end_date}")
+    # Use next month full range to avoid 404s when current month is restricted
+    today = datetime.now()
+    next_month = datetime(today.year, today.month + 1 if today.month < 12 else 1, 1)
+    start_date = next_month.strftime("%Y-%m-%d")
+    end_date_dt = (next_month.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    end_date = end_date_dt.strftime("%Y-%m-%d")
+
+    logger.info(f"Checking appointments from {start_date} to {end_date}")
     
     # Use pre-encoded strings to match exactly what the browser sends
     params = {
-        "StartDate": today,
+        "StartDate": start_date,
         "EndDate": end_date,
         "Services": '[{"servicesId":5049,"order":1,"employeeId":322350}]',
         "CombinationServices": '[]',
@@ -359,4 +363,3 @@ if __name__ == "__main__":
                 time.sleep(30)
             else:
                 logger.error("All retry attempts failed")
-
