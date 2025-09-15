@@ -6,6 +6,7 @@ import pickle
 import os
 from datetime import datetime, timedelta
 import time
+import resend
 
 # Configure logging - output to console for debugging
 logging.basicConfig(
@@ -23,15 +24,14 @@ EMAIL = os.environ.get("EMAIL")
 USER_ID = os.environ.get("USER_ID")
 
 # Configuration for checking
-DAYS_TO_LOOK_AHEAD = 34   # How many days in the future to check
-CUTOFF_DATE = datetime(2025, 6, 23)  # Only process appointments until June 19th, 2025
+DAYS_TO_LOOK_AHEAD = 30   # How many days in the future to check
+CUTOFF_DATE = datetime(2025, 6, 19)  # Only process appointments until June 19th, 2025
 
 # Mailgun Configuration
-MAILGUN_API_KEY = os.environ.get("MAILGUN_API_KEY")
-MAILGUN_DOMAIN = os.environ.get("MAILGUN_DOMAIN")
-MAILGUN_FROM_EMAIL = os.environ.get("MAILGUN_FROM_EMAIL")
-MAILGUN_TO_EMAIL = os.environ.get("MAILGUN_TO_EMAIL")
-MAILGUN_API_URL = os.environ.get("MAILGUN_API_URL")
+# Resend Configuration
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
+RESEND_FROM_EMAIL = os.environ.get("RESEND_FROM_EMAIL")
+RESEND_TO_EMAIL = os.environ.get("RESEND_TO_EMAIL")
 
 # Replace in your script
 MAIL_TEMPLATE_LINK = os.environ.get("MAIL_TEMPLATE_LINK")
@@ -41,42 +41,32 @@ PREVIOUS_NOTIFIED_FILE = "previous_notified.pkl"
 
 class EmailService:
     def __init__(self):
-        self.api_key = MAILGUN_API_KEY
-        self.domain = MAILGUN_DOMAIN
-        self.from_email = MAILGUN_FROM_EMAIL
-        self.api_url = MAILGUN_API_URL
-        
+        if RESEND_API_KEY:
+            resend.api_key = RESEND_API_KEY
+        self.from_email = RESEND_FROM_EMAIL
+        self.default_to = RESEND_TO_EMAIL
+
     def send_email(self, to, subject, html, text=None):
-        """Send email using Mailgun API"""
-        url = f"{self.api_url}/v3/{self.domain}/messages"
-        
-        data = {
-            "from": self.from_email,
-            "to": to,
+        """Send email using Resend API"""
+        # Resend expects a list for the `to` field
+        recipients = to if isinstance(to, (list, tuple)) else [to]
+
+        params = {
+            "from": self.from_email or "Onboarding <onboarding@resend.dev>",
+            "to": recipients,
             "subject": subject,
-            "html": html
+            "html": html,
         }
-        
+
         if text:
-            data["text"] = text
-            
+            params["text"] = text
+
         try:
-            response = requests.post(
-                url,
-                auth=("api", self.api_key),
-                data=data
-            )
-            
-            if response.status_code == 200:
-                logger.info(f"Email sent successfully to {to}")
-                return response.json()
-            else:
-                logger.error(f"Failed to send email. Status: {response.status_code}")
-                logger.error(f"Response: {response.text}")
-                return None
-                
+            email = resend.Emails.send(params)
+            logger.info(f"Email sent successfully to {recipients}")
+            return email
         except Exception as e:
-            logger.error(f"Error sending email: {e}")
+            logger.error(f"Error sending email via Resend: {e}")
             return None
 
 def appointment_available_template(available_dates):
@@ -127,17 +117,10 @@ def load_previous_notified():
     """Load the set of previously notified appointment dates"""
     if os.path.exists(PREVIOUS_NOTIFIED_FILE):
         try:
-            # Check if file is not empty
-            if os.path.getsize(PREVIOUS_NOTIFIED_FILE) > 0:
-                with open(PREVIOUS_NOTIFIED_FILE, 'rb') as f:
-                    return pickle.load(f)
-            else:
-                logger.warning("Previous notified file exists but is empty")
-                return set()
+            with open(PREVIOUS_NOTIFIED_FILE, 'rb') as f:
+                return pickle.load(f)
         except Exception as e:
-            logger.error(f"Error loading previous notified dates: {e}")
-            return set()
-    logger.info("No previous notified file found, creating new")
+            logger.error(f"Error loading previous notifications: {e}")
     return set()
 
 def save_previous_notified(notified_dates):
@@ -145,9 +128,8 @@ def save_previous_notified(notified_dates):
     try:
         with open(PREVIOUS_NOTIFIED_FILE, 'wb') as f:
             pickle.dump(notified_dates, f)
-        logger.info(f"Saved {len(notified_dates)} notified dates to {PREVIOUS_NOTIFIED_FILE}")
     except Exception as e:
-        logger.error(f"Error saving notified dates: {e}")
+        logger.error(f"Error saving previous notifications: {e}")
 
 def send_email_notification(available_dates):
     """Send email notification with available appointment dates"""
@@ -170,7 +152,7 @@ def send_email_notification(available_dates):
         email_template = appointment_available_template(list(new_dates))
         
         result = email_service.send_email(
-            to=MAILGUN_TO_EMAIL,
+            to=RESEND_TO_EMAIL,
             subject=email_template["subject"],
             html=email_template["html"],
             text=email_template["text"]
