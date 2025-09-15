@@ -24,7 +24,7 @@ EMAIL = os.environ.get("EMAIL")
 USER_ID = os.environ.get("USER_ID")
 
 # Configuration for checking
-CUTOFF_DATE = datetime(2025, 9, 20)  # Only process appointments until August 11th, 2025
+CUTOFF_DATE = datetime(2025, 9, 27)  # Only process appointments until August 11th, 2025
 
 # Mailgun Configuration
 # Resend Configuration
@@ -425,3 +425,4 @@ if __name__ == "__main__":
                 time.sleep(30)
             else:
                 logger.error("All retry attempts failed")
+
