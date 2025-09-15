@@ -25,7 +25,7 @@ USER_ID = os.environ.get("USER_ID")
 
 # Configuration for checking
 DAYS_TO_LOOK_AHEAD = 34   # How many days in the future to check
-CUTOFF_DATE = datetime(2025, 8, 11)  # Only process appointments until August 11th, 2025
+CUTOFF_DATE = datetime(2025, 9, 20)  # Only process appointments until August 11th, 2025
 
 # Mailgun Configuration
 # Resend Configuration
@@ -363,3 +363,4 @@ if __name__ == "__main__":
                 time.sleep(30)
             else:
                 logger.error("All retry attempts failed")
+
