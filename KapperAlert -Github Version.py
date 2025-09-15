@@ -24,8 +24,7 @@ EMAIL = os.environ.get("EMAIL")
 USER_ID = os.environ.get("USER_ID")
 
 # Configuration for checking
-DAYS_TO_LOOK_AHEAD = 30   # How many days in the future to check
-CUTOFF_DATE = datetime(2025, 9, 26)  # Only process appointments until August 11th, 2025
+CUTOFF_DATE = datetime(2025, 9, 20)  # Only process appointments until August 11th, 2025
 
 # Mailgun Configuration
 # Resend Configuration
@@ -216,14 +215,77 @@ def get_auth_token():
 
 def get_available_appointments(token):
     """Make API call to check for available appointments"""
-    # Use next month full range to avoid 404s when current month is restricted
+    # Compute requested overall range (using next-month behavior to avoid 404s on some APIs)
+    # Calculate range: start at first day of current month, end at last day of month containing CUTOFF_DATE
     today = datetime.now()
-    next_month = datetime(today.year, today.month + 1 if today.month < 12 else 1, 1)
-    start_date = next_month.strftime("%Y-%m-%d")
-    end_date_dt = (next_month.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
-    end_date = end_date_dt.strftime("%Y-%m-%d")
+    overall_start = datetime(today.year, today.month, 1)
 
-    logger.info(f"Checking appointments from {start_date} to {end_date}")
+    # last day of the month containing cutoff
+    cutoff_month_start = datetime(CUTOFF_DATE.year, CUTOFF_DATE.month, 1)
+    overall_end = (cutoff_month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+
+    logger.info(f"Checking appointments from {overall_start.strftime('%Y-%m-%d')} to {overall_end.strftime('%Y-%m-%d')} (full months)")
+
+    # Helper to iterate month-by-month and aggregate results
+    def month_ranges(start_dt, end_dt):
+        cur = start_dt
+        while cur <= end_dt:
+            month_start = datetime(cur.year, cur.month, 1)
+            month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+            yield month_start, month_end
+            # move to next month
+            next_month_dt = month_start + timedelta(days=31)
+            cur = datetime(next_month_dt.year, next_month_dt.month, 1)
+
+    aggregated = []
+    # For each month in the overall range, request that month's data and append
+    for m_start, m_end in month_ranges(overall_start, overall_end):
+        start_date = m_start.strftime('%Y-%m-%d')
+        end_date = m_end.strftime('%Y-%m-%d')
+
+        params = {
+            "StartDate": start_date,
+            "EndDate": end_date,
+            "Services": '[{"servicesId":5049,"order":1,"employeeId":322350}]',
+            "CombinationServices": '[]',
+            "EmployeeId": 322350
+        }
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Origin": os.environ.get("ORIGIN"),
+            "Referer": os.environ.get("REFERER"),
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "nl-NL,nl;q=0.8",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36"
+        }
+
+        logger.info(f"Requesting month range {start_date} to {end_date}")
+        try:
+            response = requests.get(API_URL, params=params, headers=headers)
+            logger.info(f"Appointment API status code: {response.status_code}")
+
+            if response.status_code == 404:
+                # fallback to alternative endpoint if primary returns 404
+                alt_url = f"https://api-v2-app.meetaimy.com/api/v1/user/36842/widget/service/availability"
+                logger.warning(f"Primary API 404 for {start_date} - {end_date}, trying alternative {alt_url}")
+                response = requests.get(alt_url, params=params, headers=headers)
+                logger.info(f"Alternative API status code: {response.status_code}")
+
+            response.raise_for_status()
+            try:
+                month_data = response.json()
+                if isinstance(month_data, list):
+                    aggregated.extend(month_data)
+                else:
+                    logger.warning(f"Month response not list for {start_date}-{end_date}: {type(month_data)}")
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse JSON for {start_date}-{end_date}")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"API request failed for {start_date}-{end_date}: {e}")
+
+    logger.info(f"Aggregated total days: {len(aggregated)}")
+    return aggregated
     
     # Use pre-encoded strings to match exactly what the browser sends
     params = {
@@ -363,6 +425,3 @@ if __name__ == "__main__":
                 time.sleep(30)
             else:
                 logger.error("All retry attempts failed")
-
-
-
